@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Caro - Sakura Garden</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+            background: url('https://images.unsplash.com/photo-1528164344705-47542687990d?q=80&w=1920&auto=format&fit=crop') no-repeat center center fixed;
+            background-size: cover;
+        }
+
+        .bg-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 235, 240, 0.2);
+            z-index: 0;
+        }
+
+        #sakura-canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .menu-modal {
+            position: absolute;
+            z-index: 10;
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(10px);
+            padding: 40px 50px;
+            border-radius: 24px;
+            box-shadow: 0 20px 50px rgba(219, 112, 147, 0.3);
+            text-align: center;
+            border: 2px solid #ffb6c1;
+            transition: all 0.3s ease;
+        }
+
+        .menu-modal h1 {
+            color: #d81b60;
+            font-size: 2.5rem;
+            margin-bottom: 25px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .btn-option {
+            display: block;
+            width: 100%;
+            padding: 14px 28px;
+            margin: 12px 0;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #fff;
+            background: linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%);
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(255, 117, 140, 0.4);
+            transition: all 0.2s ease;
+        }
+
+        .btn-option:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(255, 117, 140, 0.6);
+        }
+
+        .room-info {
+            margin-top: 15px;
+            font-size: 0.95rem;
+            color: #555;
+            background: #ffe6ea;
+            padding: 8px 15px;
+            border-radius: 12px;
+            display: none;
+        }
+
+        .main-game {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            z-index: 2;
+        }
+
+        .game-header {
+            background: rgba(255, 255, 255, 0.88);
+            backdrop-filter: blur(6px);
+            padding: 12px 30px;
+border-radius: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            border: 1px solid #ffb6c1;
+        }
+
+        .status-text {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .board-container {
+            position: relative;
+            background: #e4a960;
+            padding: 12px;
+            border-radius: 12px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3), inset 0 0 15px rgba(0,0,0,0.2);
+            border: 4px solid #b87b31;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(15, 32px);
+            grid-template-rows: repeat(15, 32px);
+            gap: 1px;
+            background-color: #8c5821;
+        }
+
+        .cell {
+            width: 32px;
+            height: 32px;
+            background-color: #fce4ec;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: 900;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .cell:hover {
+            background-color: #f8bbd0;
+        }
+
+        .cell.x { color: #e91e63; }
+        .cell.o { color: #1e88e5; }
+
+        #strike-svg {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            width: calc(100% - 24px);
+            height: calc(100% - 24px);
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        #strike-line {
+            stroke: #ff1744;
+            stroke-width: 5;
+            stroke-linecap: round;
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+            animation: drawLine 0.5s forwards ease-in-out;
+        }
+
+        @keyframes drawLine {
+            to { stroke-dashoffset: 0; }
+        }
+
+        .result-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            background: rgba(0, 0, 0, 0.4);
+            animation: fadeIn 0.4s forwards;
+        }
+
+        .result-title {
+            font-size: 6rem;
+            font-weight: 900;
+            letter-spacing: 5px;
+            text-transform: uppercase;
+        }
+
+        .result-title.win {
+            color: #ff69b4;
+            text-shadow: 0 0 20px #ff1493, 0 0 40px #ff69b4, 0 0 60px #fff;
+            animation: pulseWin 1s infinite alternate;
+        }
+
+        .result-title.fail {
+            color: #7f8c8d;
+            text-shadow: 0 0 10px #2c3e50;
+            animation: shakeFail 0.5s;
+        }
+
+        @keyframes pulseWin {
+            from { transform: scale(0.95); }
+            to { transform: scale(1.08); }
+        }
+if (effectMode === 'wither') {
+                    this.color = `hsl(${Math.random() * 20 + 20}, 20%, ${Math.random() * 20 + 30}%)`;
+                    this.speedY = Math.random() * 3 + 2;
+                } else if (effectMode === 'bloom') {
+                    this.color = `hsl(${Math.random() * 20 + 330}, 100%, ${Math.random() * 20 + 70}%)`;
+                    this.speedY = Math.random() * 2 + 1.5;
+                } else {
+                    this.color = `hsl(${Math.random() * 20 + 340}, 80%, 85%)`;
+                }
+            }
+
+            update() {
+                this.y += this.speedY;
+                this.x += this.speedX;
+                this.angle += this.spin;
+                if (this.y > height) this.reset();
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate((this.angle * Math.PI) / 180);
+                ctx.beginPath();
+                ctx.fillStyle = this.color;
+                ctx.ellipse(0, 0, this.size, this.size / 2, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ct
+@keyframes shakeFail {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-10px); }
+            40%, 80% { transform: translateX(10px); }
+        }
+
+        .btn-restart {
+            margin-top: 25px;
+            padding: 12px 35px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: white;
+            background: linear-gradient(45deg, #ff4081, #ff80ab);
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            box-shadow: 0 5px 20px rgba(255, 64, 129, 0.5);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="bg-overlay"></div>
+    <canvas id="sakura-canvas"></canvas>
+
+    <!-- Menu Chọn Chế Độ -->
+    <div class="menu-modal" id="menu-modal">
+        <h1>🌸 Caro Sakura 🌸</h1>
+        <button class="btn-option" onclick="startGame('pve')">🤖 Chơi Với Máy</button>
+        <button class="btn-option" onclick="startGame('pvp')">👥 Chơi 2 Người (Tạo Phòng)</button>
+        <div class="room-info" id="room-info">Mã Phòng ID: <b id="room-id-text">---</b></div>
+    </div>
+
+    <!-- Màn Hình Game -->
+    <div class="main-game" id="main-game">
+        <div class="game-header">
+            <div class="status-text" id="status">Lượt chơi: Người chơi X</div>
+            <button class="btn-option" style="margin:0; padding:8px 18px; font-size:0.9rem" onclick="backToMenu()">🏠 Menu</button>
+        </div>
+
+        <div class="board-container">
+            <svg id="strike-svg">
+                <line id="strike-line" x1="0" y1="0" x2="0" y2="0" />
+            </svg>
+            <div class="board" id="board"></div>
+        </div>
+    </div>
+
+    <!-- Thông Báo Kết Quả -->
+    <div class="result-overlay" id="result-overlay">
+        <div class="result-title" id="result-title">WIN</div>
+        <button class="btn-restart" onclick="resetGame()">Chơi Lại Trận Mới</button>
+    </div>
+
+    <script>
+        // === CANVAS HIỆU ỨNG HOA ANH ĐÀO ===
+        const canvas = document.getElementById('sakura-canvas');
+        const ctx = canvas.getContext('2d');
+        let width = canvas.width = window.innerWidth;
+        let height = canvas.height = window.innerHeight;
+
+        window.addEventListener('resize', () => {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        });
+
+        let petals = [];
+        let effectMode = 'normal';
+
+        class Petal {
+            constructor() {
+                this.reset();
+            }
+            reset() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height - height;
+                this.size = Math.random() * 8 + 8;
+                this.speedY = Math.random() * 1.5 + 1;
+                this.speedX = Math.random() * 1 - 0.5;
+                this.angle = Math.random() * 360;
+                this.spin = Math.random() * 2 - 1;
